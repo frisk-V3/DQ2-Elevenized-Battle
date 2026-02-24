@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>DQ2 Elevenized Battle</title>
+    <style>
+        body { background: #000; color: #fff; font-family: "MS Gothic", monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        #battle-screen { width: 500px; border: 4px solid #fff; padding: 20px; background: #000; box-shadow: 0 0 20px #FFD700; }
+        #status-window { display: flex; justify-content: space-around; border-bottom: 2px solid #fff; padding-bottom: 10px; margin-bottom: 20px; }
+        .unit-status { text-align: center; }
+        .zone-active { color: #00ffff; text-shadow: 0 0 10px #00ffff; font-weight: bold; }
+        #monster-area { height: 200px; display: flex; flex-direction: column; justify-content: center; align-items: center; margin-bottom: 15px; }
+        #monster-img { max-height: 160px; max-width: 250px; filter: drop-shadow(0 0 10px gold); transition: transform 0.1s; }
+        #log { height: 100px; overflow-y: auto; border: 1px solid #444; padding: 10px; background: #111; font-size: 14px; margin-bottom: 15px; }
+        #command-window { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button { background: #000; color: #fff; border: 2px solid #fff; padding: 10px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #fff; color: #000; }
+        button:disabled { border-color: #333; color: #666; cursor: not-allowed; }
+        .zone-btn { border-color: #00ffff; color: #00ffff; }
+        .shake { animation: shake 0.2s; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(5px); } 75% { transform: translateX(-5px); } }
+    </style>
+</head>
+<body>
+
+<div id="battle-screen">
+    <div id="status-window">
+        <div id="hero-stat" class="unit-status">勇者<br>H:<span id="h-hp">150</span> M:<span id="h-mp">30</span><br><span id="h-z"></span></div>
+        <div id="ally-stat" class="unit-status">仲間<br>H:<span id="a-hp">120</span> M:<span id="a-mp">50</span><br><span id="a-z"></span></div>
+    </div>
+    <div id="monster-area">
+        <!-- あなたのリポジトリのURLをセットしました -->
+        <img id="monster-img" src="https://raw.githubusercontent.com/frisk-V3/DQ2-Elevenized-Battle/refs/heads/main/%E3%82%B4%E3%83%BC%E3%83%AB%E3%83%87%E3%83%B3%E3%82%B9%E3%83%A9%E3%82%A4%E3%83%A0.svg" alt="Golden Slime">
+        <div id="monster-name">ゴールデンスライム</div>
+    </div>
+    <div id="log">ゴールデンスライムが あらわれた！</div>
+    <div id="command-window">
+        <button onclick="cmd('attack')">こうげき</button>
+        <button onclick="cmd('spell')">デイン(MP8)</button>
+        <button id="z-btn" class="zone-btn" onclick="cmd('renkei')" disabled>れんけい</button>
+        <button onclick="cmd('defend')">ぼうぎょ</button>
+    </div>
+</div>
+
+<script>
+const party = {
+    hero: { hp: 150, mp: 30, atk: 45, zoned: false, charge: 0 },
+    ally: { hp: 120, mp: 50, atk: 25, zoned: false, charge: 0 }
+};
+
+const monster = { name: "ゴールデンスライム", hp: 30, def: 500, eva: 0.3, atk: 40 };
+
+function updateUI() {
+    document.getElementById('h-hp').innerText = party.hero.hp;
+    document.getElementById('h-mp').innerText = party.hero.mp;
+    document.getElementById('a-hp').innerText = party.ally.hp;
+    document.getElementById('a-mp').innerText = party.ally.mp;
+    document.getElementById('h-z').innerText = party.hero.zoned ? "【ZONE】" : "";
+    document.getElementById('a-z').innerText = party.ally.zoned ? "【ZONE】" : "";
+    document.getElementById('hero-stat').className = party.hero.zoned ? "unit-status zone-active" : "unit-status";
+    document.getElementById('ally-stat').className = party.ally.zoned ? "unit-status zone-active" : "unit-status";
+    document.getElementById('z-btn').disabled = !(party.hero.zoned && party.ally.zoned);
+}
+
+function addLog(m) {
+    const l = document.getElementById('log');
+    l.innerHTML += `<div>${m}</div>`;
+    l.scrollTop = l.scrollHeight;
+}
+
+function cmd(type) {
+    if (monster.hp <= 0) return;
+
+    if (Math.random() < monster.eva) {
+        addLog(`${monster.name}は ひらりと身をかわした！`);
+    } else {
+        const img = document.getElementById('monster-img');
+        img.classList.remove('shake');
+        void img.offsetWidth; 
+        img.classList.add('shake');
+
+        if (type === 'attack') {
+            let dmg = party.hero.zoned ? 3 : 1;
+            monster.hp -= dmg;
+            addLog(`勇者の攻撃！ ${monster.name}に ${dmg}のダメージ！`);
+        } else if (type === 'spell') {
+            if (party.hero.mp >= 8) {
+                party.hero.mp -= 8;
+                monster.hp -= 10;
+                addLog(`勇者のデイン！ ${monster.name}に 10のダメージ！`);
+            } else { addLog("MPが足りない！"); return; }
+        } else if (type === 'renkei') {
+            monster.hp -= 20;
+            addLog(`れんけい：【ゴールデンブレイク】！ 20のダメージ！`);
+            party.hero.zoned = party.ally.zoned = false;
+        }
+    }
+
+    [party.hero, party.ally].forEach(c => {
+        c.charge += 25;
+        if(c.charge >= 100 && !c.zoned) { c.zoned = true; c.charge = 0; addLog(`${c.name}がゾーンに入った！`); }
+    });
+
+    updateUI();
+    if (monster.hp <= 0) { addLog(`${monster.name}を倒した！`); document.getElementById('monster-img').style.opacity = "0.3"; return; }
+    
+    setTimeout(() => {
+        const target = Math.random() > 0.5 ? party.hero : party.ally;
+        const dmg = Math.floor(Math.random() * 10) + monster.atk;
+        target.hp = Math.max(0, target.hp - dmg);
+        addLog(`${monster.name}の猛攻！ ${dmg}のダメージ！`);
+        updateUI();
+    }, 600);
+}
+updateUI();
+</script>
+</body>
+</html>
